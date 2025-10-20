@@ -46,6 +46,10 @@
           transform: translateY(20px);
           opacity: 0;
         }
+        .ghost {
+            opacity: 0.5;
+            background: #f0f9ff;
+        }
     </style>
 </head>
 <body>
@@ -155,21 +159,47 @@
             <!-- 待辦清單視圖 -->
             <div v-if="currentView === 'todos'">
                  <h1 class="text-3xl font-bold text-gray-800 mb-1">待辦清單</h1>
-                 <p class="text-gray-500 mb-6">今日事，今日畢！</p>
+                 <p class="text-gray-500 mb-6">今日事，今日畢！拖曳可以排序喔。</p>
                 <div class="bg-white p-6 rounded-2xl shadow-lg border border-gray-200">
                     <form @submit.prevent="addTodo" class="flex gap-4 mb-4">
                         <input type="text" v-model="newTodo.text" placeholder="新增一個新任務..." class="flex-grow p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:outline-none transition">
                         <button type="submit" class="bg-orange-600 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-orange-700 transition-colors">新增</button>
                     </form>
                     <ul>
-                        <li v-for="todo in todos" :key="todo.id" class="flex items-center justify-between p-3 border-b border-gray-200 last:border-b-0 hover:bg-gray-50 rounded-lg">
-                            <div class="flex items-center gap-3">
-                                <input type="checkbox" v-model="todo.completed" class="h-5 w-5 rounded border-gray-300 text-orange-600 focus:ring-orange-500">
-                                <span :class="{ 'line-through text-gray-400': todo.completed }" class="text-gray-700">{{ todo.text }}</span>
+                        <li v-for="todo in todos" 
+                            :key="todo.id" 
+                            class="flex items-center justify-between p-3 border-b border-gray-200 last:border-b-0 hover:bg-gray-50 rounded-lg group cursor-move"
+                            :class="{ 'ghost': draggingTodo && draggingTodo.id === todo.id }"
+                            draggable="true"
+                            @dragstart="dragStart(todo)"
+                            @dragover.prevent
+                            @drop="onDrop(todo)"
+                            @dragend="dragEnd">
+                            
+                            <div class="flex items-center gap-3 flex-grow">
+                                <input type="checkbox" v-model="todo.completed" class="h-5 w-5 rounded border-gray-300 text-orange-600 focus:ring-orange-500 flex-shrink-0">
+                                
+                                <div v-if="!todo.editing" @dblclick="startEdit(todo)" class="w-full py-1">
+                                    <span :class="{ 'line-through text-gray-400': todo.completed }" class="text-gray-700">{{ todo.text }}</span>
+                                </div>
+                                <input v-else 
+                                       type="text" 
+                                       v-model="todo.text"
+                                       @blur="finishEdit(todo)"
+                                       @keyup.enter="finishEdit(todo)"
+                                       @keyup.esc="cancelEdit(todo)"
+                                       class="flex-grow p-1 border border-orange-300 rounded-md focus:ring-2 focus:ring-orange-500 focus:outline-none transition w-full"
+                                       v-focus>
                             </div>
-                            <button @click="deleteTodo(todo.id)" class="text-gray-400 hover:text-red-500 transition-colors">
-                                <i class="fa-solid fa-times"></i>
-                            </button>
+
+                            <div class="flex items-center flex-shrink-0">
+                                <button v-if="!todo.editing" @click="startEdit(todo)" class="text-gray-400 hover:text-blue-500 transition-colors px-2 opacity-0 group-hover:opacity-100">
+                                    <i class="fa-solid fa-pencil"></i>
+                                </button>
+                                <button @click="deleteTodo(todo.id)" class="text-gray-400 hover:text-red-500 transition-colors px-2 opacity-0 group-hover:opacity-100">
+                                    <i class="fa-solid fa-times"></i>
+                                </button>
+                            </div>
                         </li>
                     </ul>
                      <div v-if="!todos.length" class="text-center py-12 text-gray-500">
@@ -304,7 +334,7 @@
 <script>
     const { createApp, ref, reactive, computed, watch, onMounted, onUnmounted } = Vue;
 
-    createApp({
+    const app = createApp({
         setup() {
             // 設定 Day.js
             dayjs.extend(window.dayjs_plugin_relativeTime);
@@ -313,7 +343,7 @@
             // --- 響應式狀態 ---
             const currentView = ref('dashboard');
             const goals = ref(JSON.parse(localStorage.getItem('goals') || '[]'));
-            const todos = ref(JSON.parse(localStorage.getItem('todos') || '[]'));
+            const todos = ref(JSON.parse(localStorage.getItem('todos') || '[]').map(todo => ({...todo, editing: false})));
             const events = ref(JSON.parse(localStorage.getItem('events') || '[]'));
             
             const showModal = ref(null); // 'goalForm', 'eventForm', null
@@ -321,6 +351,8 @@
             const goalForm = reactive({ id: null, title: '', description: '', targetDate: '' });
             const eventForm = reactive({ id: null, date: '', title: '', startTime: '', endTime: '' });
             const newTodo = reactive({ text: '' });
+            let originalTodoText = '';
+            const draggingTodo = ref(null);
 
             const countdown = ref(null);
             let countdownInterval = null;
@@ -329,8 +361,6 @@
             const selectedDate = ref(dayjs());
 
             // --- 計算屬性 ---
-            
-            // 找出最近的一個目標作為主要目標
             const mainGoal = computed(() => {
                 const futureGoals = goals.value
                     .filter(g => dayjs(g.targetDate).isAfter(dayjs()))
@@ -338,7 +368,6 @@
                 return futureGoals.length > 0 ? futureGoals[0] : (goals.value.length > 0 ? goals.value[0] : null);
             });
 
-            // 計算月曆需要顯示的日期陣列
             const calendarDays = computed(() => {
                 const startOfMonth = currentMonth.value.startOf('month');
                 const endOfMonth = currentMonth.value.endOf('month');
@@ -361,7 +390,6 @@
                 return days;
             });
             
-            // 取得選定日期的所有行程
             const eventsOnSelectedDate = computed(() => {
                 return events.value
                     .filter(event => dayjs(event.date).isSame(selectedDate.value, 'day'))
@@ -409,7 +437,8 @@
                 todos.value.unshift({
                     id: Date.now(),
                     text: newTodo.text,
-                    completed: false
+                    completed: false,
+                    editing: false
                 });
                 newTodo.text = '';
             };
@@ -417,13 +446,55 @@
                 todos.value = todos.value.filter(t => t.id !== id);
             };
 
+            const startEdit = (todo) => {
+                originalTodoText = todo.text;
+                todos.value.forEach(t => t.editing = false);
+                todo.editing = true;
+            };
+
+            const finishEdit = (todo) => {
+                if (!todo.text.trim()) {
+                    todo.text = originalTodoText;
+                }
+                todo.editing = false;
+                originalTodoText = '';
+            };
+
+            const cancelEdit = (todo) => {
+                todo.text = originalTodoText;
+                todo.editing = false;
+                originalTodoText = '';
+            };
+
+            const dragStart = (todo) => {
+                draggingTodo.value = todo;
+            };
+
+            const onDrop = (targetTodo) => {
+                if (!draggingTodo.value || draggingTodo.value.id === targetTodo.id) {
+                    draggingTodo.value = null;
+                    return;
+                };
+                
+                const fromIndex = todos.value.findIndex(t => t.id === draggingTodo.value.id);
+                const toIndex = todos.value.findIndex(t => t.id === targetTodo.id);
+
+                if (fromIndex !== -1 && toIndex !== -1) {
+                    const item = todos.value.splice(fromIndex, 1)[0];
+                    todos.value.splice(toIndex, 0, item);
+                }
+            };
+
+            const dragEnd = () => {
+                draggingTodo.value = null;
+            };
+
+
             // 行程管理
             const openEventModal = (event = null) => {
                 if (event) {
-                    // 編輯模式
                     Object.assign(eventForm, event);
                 } else {
-                    // 新增模式
                     eventForm.id = null;
                     eventForm.title = '';
                     eventForm.startTime = '';
@@ -436,17 +507,12 @@
             const saveEvent = () => {
                 if (!eventForm.title || !eventForm.startTime || !eventForm.endTime) return;
                 if (eventForm.id) {
-                    // 更新現有行程
                     const index = events.value.findIndex(e => e.id === eventForm.id);
                     if (index !== -1) {
                         events.value[index] = { ...eventForm };
                     }
                 } else {
-                    // 新增行程
-                    events.value.push({
-                        ...eventForm,
-                        id: Date.now()
-                    });
+                    events.value.push({ ...eventForm, id: Date.now() });
                 }
                 showModal.value = null;
             };
@@ -491,7 +557,7 @@
             // --- 資料持久化 ---
             watch(goals, (newGoals) => {
                 localStorage.setItem('goals', JSON.stringify(newGoals));
-                startCountdown(); // 目標改變時，重啟倒數
+                startCountdown();
             }, { deep: true });
 
             watch(todos, (newTodos) => {
@@ -521,11 +587,18 @@
                 newTodo,
                 mainGoal,
                 countdown,
+                draggingTodo,
                 openGoalModal,
                 saveGoal,
                 deleteGoal,
                 addTodo,
                 deleteTodo,
+                startEdit,
+                finishEdit,
+                cancelEdit,
+                dragStart,
+                onDrop,
+                dragEnd,
                 dayjs,
                 currentMonth,
                 selectedDate,
@@ -539,7 +612,14 @@
                 deleteEvent
             };
         }
-    }).mount('#app');
+    });
+
+    // 註冊一個自定義指令 v-focus，用於自動聚焦
+    app.directive('focus', {
+      mounted: (el) => el.focus()
+    });
+    
+    app.mount('#app');
 </script>
 
 </body>
