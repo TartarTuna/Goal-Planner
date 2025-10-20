@@ -218,7 +218,7 @@
                     <div class="bg-white p-6 rounded-2xl shadow-lg border border-gray-200 lg:w-1/3">
                         <h3 class="text-xl font-bold text-gray-800 mb-1">{{ selectedDate.format('MMMM D, YYYY') }}</h3>
                         <p class="text-gray-500 mb-4">{{ selectedDate.format('dddd') }}</p>
-                        <button @click="showModal = 'newEvent'" class="w-full bg-green-500 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-green-600 transition-colors flex items-center justify-center gap-2 mb-4">
+                        <button @click="openEventModal()" class="w-full bg-green-500 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-green-600 transition-colors flex items-center justify-center gap-2 mb-4">
                              <i class="fa-solid fa-plus"></i> 新增行程
                         </button>
                         <div class="space-y-3">
@@ -227,7 +227,10 @@
                                    <p class="font-semibold text-orange-800">{{ event.title }}</p>
                                    <p class="text-sm text-orange-600">{{ event.startTime }} - {{ event.endTime }}</p>
                                </div>
-                               <button @click="deleteEvent(event.id)" class="text-orange-400 hover:text-red-500 text-sm pt-1"><i class="fa-solid fa-trash"></i></button>
+                               <div class="flex items-center">
+                                   <button @click="openEventModal(event)" class="text-blue-500 hover:text-blue-700 text-sm pt-1 mr-3"><i class="fa-solid fa-pencil"></i></button>
+                                   <button @click="deleteEvent(event.id)" class="text-orange-400 hover:text-red-500 text-sm pt-1"><i class="fa-solid fa-trash"></i></button>
+                               </div>
                            </div>
                            <div v-if="eventsOnSelectedDate.length === 0" class="text-center text-gray-500 pt-8">
                                 <i class="fa-solid fa-calendar-check text-3xl text-gray-300 mb-3"></i>
@@ -269,22 +272,22 @@
                     </form>
                 </div>
 
-                <!-- 新增行程 Modal -->
-                <div v-if="showModal === 'newEvent'">
-                    <h2 class="text-2xl font-bold text-gray-800 mb-4">新增行程於 {{ selectedDate.format('YYYY/MM/DD') }}</h2>
-                    <form @submit.prevent="addEvent">
+                <!-- 新增/編輯行程 Modal -->
+                <div v-if="showModal === 'eventForm'">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">{{ eventForm.id ? '編輯行程' : '新增行程' }}於 {{ selectedDate.format('YYYY/MM/DD') }}</h2>
+                    <form @submit.prevent="saveEvent">
                         <div class="mb-4">
                             <label class="block text-gray-700 font-semibold mb-2">行程名稱</label>
-                            <input type="text" v-model="newEvent.title" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none" required>
+                            <input type="text" v-model="eventForm.title" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none" required>
                         </div>
                         <div class="grid grid-cols-2 gap-4 mb-6">
                             <div>
                                 <label class="block text-gray-700 font-semibold mb-2">開始時間</label>
-                                <input type="time" v-model="newEvent.startTime" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none" required>
+                                <input type="time" v-model="eventForm.startTime" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none" required>
                             </div>
                             <div>
                                 <label class="block text-gray-700 font-semibold mb-2">結束時間</label>
-                                <input type="time" v-model="newEvent.endTime" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none" required>
+                                <input type="time" v-model="eventForm.endTime" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none" required>
                             </div>
                         </div>
                         <div class="flex justify-end gap-4">
@@ -313,11 +316,11 @@
             const todos = ref(JSON.parse(localStorage.getItem('todos') || '[]'));
             const events = ref(JSON.parse(localStorage.getItem('events') || '[]'));
             
-            const showModal = ref(null); // 'goalForm', 'newEvent', null
+            const showModal = ref(null); // 'goalForm', 'eventForm', null
 
             const goalForm = reactive({ id: null, title: '', description: '', targetDate: '' });
+            const eventForm = reactive({ id: null, date: '', title: '', startTime: '', endTime: '' });
             const newTodo = reactive({ text: '' });
-            const newEvent = reactive({ title: '', startTime: '', endTime: '' });
 
             const countdown = ref(null);
             let countdownInterval = null;
@@ -370,10 +373,8 @@
             // 目標管理
             const openGoalModal = (goal = null) => {
                 if (goal) {
-                    // 編輯模式
                     Object.assign(goalForm, goal);
                 } else {
-                    // 新增模式
                     goalForm.id = null;
                     goalForm.title = '';
                     goalForm.description = '';
@@ -385,13 +386,11 @@
             const saveGoal = () => {
                 if (!goalForm.title || !goalForm.targetDate) return;
                 if (goalForm.id) {
-                    // 更新現有目標
                     const index = goals.value.findIndex(g => g.id === goalForm.id);
                     if (index !== -1) {
                         goals.value[index] = { ...goalForm };
                     }
                 } else {
-                    // 新增目標
                     goals.value.push({
                         ...goalForm,
                         id: Date.now()
@@ -419,18 +418,39 @@
             };
 
             // 行程管理
-            const addEvent = () => {
-                if (!newEvent.title || !newEvent.startTime || !newEvent.endTime) return;
-                events.value.push({
-                    id: Date.now(),
-                    date: selectedDate.value.format('YYYY-MM-DD'),
-                    ...newEvent
-                });
-                newEvent.title = '';
-                newEvent.startTime = '';
-                newEvent.endTime = '';
+            const openEventModal = (event = null) => {
+                if (event) {
+                    // 編輯模式
+                    Object.assign(eventForm, event);
+                } else {
+                    // 新增模式
+                    eventForm.id = null;
+                    eventForm.title = '';
+                    eventForm.startTime = '';
+                    eventForm.endTime = '';
+                    eventForm.date = selectedDate.value.format('YYYY-MM-DD');
+                }
+                showModal.value = 'eventForm';
+            };
+
+            const saveEvent = () => {
+                if (!eventForm.title || !eventForm.startTime || !eventForm.endTime) return;
+                if (eventForm.id) {
+                    // 更新現有行程
+                    const index = events.value.findIndex(e => e.id === eventForm.id);
+                    if (index !== -1) {
+                        events.value[index] = { ...eventForm };
+                    }
+                } else {
+                    // 新增行程
+                    events.value.push({
+                        ...eventForm,
+                        id: Date.now()
+                    });
+                }
                 showModal.value = null;
             };
+            
             const deleteEvent = (id) => {
                 events.value = events.value.filter(e => e.id !== id);
             };
@@ -497,8 +517,8 @@
                 events,
                 showModal,
                 goalForm,
+                eventForm,
                 newTodo,
-                newEvent,
                 mainGoal,
                 countdown,
                 openGoalModal,
@@ -514,7 +534,8 @@
                 prevMonth,
                 nextMonth,
                 selectDate,
-                addEvent,
+                openEventModal,
+                saveEvent,
                 deleteEvent
             };
         }
