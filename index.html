@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Goal Booster</title>
+    <title>目標設定與規劃工具</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 384 512'><path fill='%23EA580C' d='M153.6 29.9l16-21.3C173.6 3.2 181.8 0 192 0s18.4 3.2 22.4 8.5l16 21.3C267.1 63.5 314.6 128 320 192c5.4 64-26.4 128-80 160s-128 26.4-160-80c-3.5-22.1-2.9-44.4 .9-66.5l8.5-48.4c4.8-27.3 22-52.1 40-70.1l2.4-2.4C169.5 106.3 162.2 64 153.6 29.9zM192 384c17.7 0 32-14.3 32-32s-14.3-32-32-32-32 14.3-32 32 14.3 32 32 32z'/></svg>">
     <!-- 引入 Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -122,7 +122,7 @@
                       <h1 class="text-3xl font-bold text-gray-800">我的目標</h1>
                       <p class="text-gray-500 mt-1">設定、追蹤並完成您的長期目標。</p>
                     </div>
-                    <button @click="showModal = 'newGoal'" class="bg-orange-600 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-orange-700 transition-colors flex items-center gap-2">
+                    <button @click="openGoalModal()" class="bg-orange-600 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-orange-700 transition-colors flex items-center gap-2">
                         <i class="fa-solid fa-plus"></i> 新增目標
                     </button>
                 </div>
@@ -137,6 +137,9 @@
                             </p>
                         </div>
                         <div class="text-right mt-4">
+                            <button @click="openGoalModal(goal)" class="text-blue-500 hover:text-blue-700 transition-colors mr-4">
+                                <i class="fa-solid fa-pencil"></i> 編輯
+                            </button>
                             <button @click="deleteGoal(goal.id)" class="text-red-500 hover:text-red-700 transition-colors">
                                 <i class="fa-solid fa-trash"></i> 刪除
                             </button>
@@ -243,21 +246,21 @@
     <Transition name="fade">
         <div v-if="showModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md m-4">
-                <!-- 新增目標 Modal -->
-                <div v-if="showModal === 'newGoal'">
-                    <h2 class="text-2xl font-bold text-gray-800 mb-4">新增一個新目標</h2>
-                    <form @submit.prevent="addGoal">
+                <!-- 新增/編輯目標 Modal -->
+                <div v-if="showModal === 'goalForm'">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">{{ goalForm.id ? '編輯目標' : '新增一個新目標' }}</h2>
+                    <form @submit.prevent="saveGoal">
                         <div class="mb-4">
                             <label class="block text-gray-700 font-semibold mb-2">目標名稱</label>
-                            <input type="text" v-model="newGoal.title" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:outline-none" required>
+                            <input type="text" v-model="goalForm.title" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:outline-none" required>
                         </div>
                         <div class="mb-4">
                             <label class="block text-gray-700 font-semibold mb-2">目標描述</label>
-                            <textarea v-model="newGoal.description" rows="3" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:outline-none"></textarea>
+                            <textarea v-model="goalForm.description" rows="3" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:outline-none"></textarea>
                         </div>
                         <div class="mb-6">
                             <label class="block text-gray-700 font-semibold mb-2">目標日期</label>
-                            <input type="date" v-model="newGoal.targetDate" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:outline-none" required>
+                            <input type="date" v-model="goalForm.targetDate" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:outline-none" required>
                         </div>
                         <div class="flex justify-end gap-4">
                             <button type="button" @click="showModal = null" class="bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg hover:bg-gray-300">取消</button>
@@ -310,9 +313,9 @@
             const todos = ref(JSON.parse(localStorage.getItem('todos') || '[]'));
             const events = ref(JSON.parse(localStorage.getItem('events') || '[]'));
             
-            const showModal = ref(null); // 'newGoal', 'newEvent', null
+            const showModal = ref(null); // 'goalForm', 'newEvent', null
 
-            const newGoal = reactive({ title: '', description: '', targetDate: '' });
+            const goalForm = reactive({ id: null, title: '', description: '', targetDate: '' });
             const newTodo = reactive({ text: '' });
             const newEvent = reactive({ title: '', startTime: '', endTime: '' });
 
@@ -365,18 +368,38 @@
             // --- 方法 ---
 
             // 目標管理
-            const addGoal = () => {
-                if (!newGoal.title || !newGoal.targetDate) return;
-                goals.value.push({
-                    id: Date.now(),
-                    ...newGoal
-                });
-                // reset
-                newGoal.title = '';
-                newGoal.description = '';
-                newGoal.targetDate = '';
+            const openGoalModal = (goal = null) => {
+                if (goal) {
+                    // 編輯模式
+                    Object.assign(goalForm, goal);
+                } else {
+                    // 新增模式
+                    goalForm.id = null;
+                    goalForm.title = '';
+                    goalForm.description = '';
+                    goalForm.targetDate = '';
+                }
+                showModal.value = 'goalForm';
+            };
+
+            const saveGoal = () => {
+                if (!goalForm.title || !goalForm.targetDate) return;
+                if (goalForm.id) {
+                    // 更新現有目標
+                    const index = goals.value.findIndex(g => g.id === goalForm.id);
+                    if (index !== -1) {
+                        goals.value[index] = { ...goalForm };
+                    }
+                } else {
+                    // 新增目標
+                    goals.value.push({
+                        ...goalForm,
+                        id: Date.now()
+                    });
+                }
                 showModal.value = null;
             };
+
             const deleteGoal = (id) => {
                 goals.value = goals.value.filter(g => g.id !== id);
             };
@@ -473,12 +496,13 @@
                 todos,
                 events,
                 showModal,
-                newGoal,
+                goalForm,
                 newTodo,
                 newEvent,
                 mainGoal,
                 countdown,
-                addGoal,
+                openGoalModal,
+                saveGoal,
                 deleteGoal,
                 addTodo,
                 deleteTodo,
