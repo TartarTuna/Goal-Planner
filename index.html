@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>目標設定與規劃工具</title>
+    <title>Goal Booster</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 384 512'><path fill='%23EA580C' d='M153.6 29.9l16-21.3C173.6 3.2 181.8 0 192 0s18.4 3.2 22.4 8.5l16 21.3C267.1 63.5 314.6 128 320 192c5.4 64-26.4 128-80 160s-128 26.4-160-80c-3.5-22.1-2.9-44.4 .9-66.5l8.5-48.4c4.8-27.3 22-52.1 40-70.1l2.4-2.4C169.5 106.3 162.2 64 153.6 29.9zM192 384c17.7 0 32-14.3 32-32s-14.3-32-32-32-32 14.3-32 32 14.3 32 32 32z'/></svg>">
     <!-- 引入 Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -84,7 +84,7 @@
             <!-- 儀表板視圖 -->
             <div v-if="currentView === 'dashboard'">
                 <h1 class="text-3xl font-bold text-gray-800 mb-2">儀表板</h1>
-                <p class="text-gray-500 mb-8">歡迎回來！這是您主要目標的進度。</p>
+                <p class="text-gray-500 mb-8">不想之後哭著後悔，現在就馬上行動！</p>
                 <div class="bg-white p-8 rounded-2xl shadow-lg border border-gray-200">
                     <div v-if="mainGoal">
                         <h2 class="text-xl font-semibold text-gray-700 text-center">距離目標： <span class="text-orange-600">{{ mainGoal.title }}</span></h2>
@@ -114,7 +114,7 @@
                     <div v-else class="text-center py-12">
                         <i class="fa-solid fa-bullseye text-4xl text-gray-300 mb-4"></i>
                         <h3 class="text-xl font-semibold text-gray-600">尚未設定任何目標</h3>
-                        <p class="text-gray-400">前往「目標設定」頁面新增您的第一個目標吧！</p>
+                        <p class="text-gray-400">前往「目標設定」頁面新增第一個目標吧！</p>
                     </div>
                 </div>
             </div>
@@ -124,7 +124,7 @@
                 <div class="flex justify-between items-center mb-6">
                     <div>
                       <h1 class="text-3xl font-bold text-gray-800">我的目標</h1>
-                      <p class="text-gray-500 mt-1">設定、追蹤並完成您的長期目標。</p>
+                      <p class="text-gray-500 mt-1">設定、追蹤並完成目標。</p>
                     </div>
                     <button @click="openGoalModal()" class="bg-orange-600 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-orange-700 transition-colors flex items-center gap-2">
                         <i class="fa-solid fa-plus"></i> 新增目標
@@ -159,7 +159,7 @@
             <!-- 待辦清單視圖 -->
             <div v-if="currentView === 'todos'">
                  <h1 class="text-3xl font-bold text-gray-800 mb-1">待辦清單</h1>
-                 <p class="text-gray-500 mb-6">今日事，今日畢！拖曳可以排序喔。</p>
+                 <p class="text-gray-500 mb-6">動起來就對了！</p>
                 <div class="bg-white p-6 rounded-2xl shadow-lg border border-gray-200">
                     <form @submit.prevent="addTodo" class="flex gap-4 mb-4">
                         <input type="text" v-model="newTodo.text" placeholder="新增一個新任務..." class="flex-grow p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:outline-none transition">
@@ -624,4 +624,5 @@
 
 </body>
 </html>
+
 
