@@ -1,0 +1,504 @@
+
+
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>目標設定與規劃工具</title>
+    <!-- 引入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 Vue 3 -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <!-- 引入 Day.js 以方便處理日期 -->
+    <script src="https://unpkg.com/dayjs@1/dayjs.min.js"></script>
+    <script src="https://unpkg.com/dayjs@1/plugin/relativeTime.js"></script>
+    <script src="https://unpkg.com/dayjs@1/locale/zh-tw.js"></script>
+    <!-- 引入 Font Awesome 圖示庫 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        /* 自定義樣式，使整體外觀更柔和 */
+        body {
+            font-family: 'Inter', 'Noto Sans TC', sans-serif;
+            background-color: #f8fafc; /* 使用柔和的背景色 */
+        }
+        .sidebar-icon {
+            transition: all 0.2s ease-in-out;
+        }
+        .sidebar-icon:hover {
+            transform: scale(1.1);
+            color: #ea580c; /* corresponds to orange-600 */
+        }
+        /* 針對動畫效果的 CSS */
+        .fade-enter-active, .fade-leave-active {
+            transition: opacity 0.3s ease;
+        }
+        .fade-enter-from, .fade-leave-to {
+            opacity: 0;
+        }
+        .slide-fade-enter-active {
+          transition: all 0.3s ease-out;
+        }
+        .slide-fade-leave-active {
+          transition: all 0.3s cubic-bezier(1, 0.5, 0.8, 1);
+        }
+        .slide-fade-enter-from,
+        .slide-fade-leave-to {
+          transform: translateY(20px);
+          opacity: 0;
+        }
+    </style>
+</head>
+<body>
+
+<div id="app" class="flex h-screen bg-gray-100 antialiased">
+    <!-- Sidebar 側邊導覽列 -->
+    <aside class="w-20 bg-white shadow-md flex flex-col items-center py-6 space-y-8">
+        <div class="text-orange-600">
+            <i class="fa-solid fa-rocket fa-2x"></i>
+        </div>
+        <nav class="flex flex-col items-center space-y-8">
+            <a href="#" @click.prevent="currentView = 'dashboard'" class="sidebar-icon text-gray-500 p-3 rounded-lg" :class="{ 'bg-orange-100 text-orange-600': currentView === 'dashboard' }" title="儀表板">
+                <i class="fa-solid fa-tachometer-alt fa-2x"></i>
+            </a>
+            <a href="#" @click.prevent="currentView = 'goals'" class="sidebar-icon text-gray-500 p-3 rounded-lg" :class="{ 'bg-orange-100 text-orange-600': currentView === 'goals' }" title="目標設定">
+                <i class="fa-solid fa-bullseye fa-2x"></i>
+            </a>
+            <a href="#" @click.prevent="currentView = 'todos'" class="sidebar-icon text-gray-500 p-3 rounded-lg" :class="{ 'bg-orange-100 text-orange-600': currentView === 'todos' }" title="待辦清單">
+                <i class="fa-solid fa-list-check fa-2x"></i>
+            </a>
+            <a href="#" @click.prevent="currentView = 'calendar'" class="sidebar-icon text-gray-500 p-3 rounded-lg" :class="{ 'bg-orange-100 text-orange-600': currentView === 'calendar' }" title="行事曆">
+                <i class="fa-solid fa-calendar-days fa-2x"></i>
+            </a>
+        </nav>
+    </aside>
+
+    <!-- Main Content 主要內容區域 -->
+    <main class="flex-1 p-6 md:p-8 overflow-y-auto">
+        <Transition name="slide-fade" mode="out-in">
+        <div :key="currentView">
+
+            <!-- 儀表板視圖 -->
+            <div v-if="currentView === 'dashboard'">
+                <h1 class="text-3xl font-bold text-gray-800 mb-2">儀表板</h1>
+                <p class="text-gray-500 mb-8">歡迎回來！這是您主要目標的進度。</p>
+                <div class="bg-white p-8 rounded-2xl shadow-lg border border-gray-200">
+                    <div v-if="mainGoal">
+                        <h2 class="text-xl font-semibold text-gray-700 text-center">距離目標： <span class="text-orange-600">{{ mainGoal.title }}</span></h2>
+                        <p class="text-gray-500 text-center mb-6">目標日期：{{ dayjs(mainGoal.targetDate).format('YYYY-MM-DD') }}</p>
+                        <div v-if="countdown" class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                            <div class="bg-gray-100 p-6 rounded-xl">
+                                <div class="text-4xl font-bold text-orange-600">{{ countdown.days }}</div>
+                                <div class="text-gray-500">天</div>
+                            </div>
+                            <div class="bg-gray-100 p-6 rounded-xl">
+                                <div class="text-4xl font-bold text-orange-600">{{ countdown.hours }}</div>
+                                <div class="text-gray-500">小時</div>
+                            </div>
+                            <div class="bg-gray-100 p-6 rounded-xl">
+                                <div class="text-4xl font-bold text-orange-600">{{ countdown.minutes }}</div>
+                                <div class="text-gray-500">分鐘</div>
+                            </div>
+                            <div class="bg-gray-100 p-6 rounded-xl">
+                                <div class="text-4xl font-bold text-orange-600">{{ countdown.seconds }}</div>
+                                <div class="text-gray-500">秒</div>
+                            </div>
+                        </div>
+                         <div v-else class="text-center text-2xl font-bold text-green-500 mt-4">
+                            目標日期已到或已過！
+                        </div>
+                    </div>
+                    <div v-else class="text-center py-12">
+                        <i class="fa-solid fa-bullseye text-4xl text-gray-300 mb-4"></i>
+                        <h3 class="text-xl font-semibold text-gray-600">尚未設定任何目標</h3>
+                        <p class="text-gray-400">前往「目標設定」頁面新增您的第一個目標吧！</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 目標設定視圖 -->
+            <div v-if="currentView === 'goals'">
+                <div class="flex justify-between items-center mb-6">
+                    <div>
+                      <h1 class="text-3xl font-bold text-gray-800">我的目標</h1>
+                      <p class="text-gray-500 mt-1">設定、追蹤並完成您的長期目標。</p>
+                    </div>
+                    <button @click="showModal = 'newGoal'" class="bg-orange-600 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-orange-700 transition-colors flex items-center gap-2">
+                        <i class="fa-solid fa-plus"></i> 新增目標
+                    </button>
+                </div>
+                <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div v-for="goal in goals" :key="goal.id" class="bg-white p-6 rounded-xl shadow-lg border border-gray-200 flex flex-col">
+                        <div class="flex-1">
+                            <h3 class="text-xl font-bold text-gray-800">{{ goal.title }}</h3>
+                            <p class="text-gray-600 my-2">{{ goal.description }}</p>
+                            <p class="text-sm text-gray-500">目標日期: {{ dayjs(goal.targetDate).format('YYYY-MM-DD') }}</p>
+                            <p class="text-sm font-medium" :class="dayjs(goal.targetDate).isAfter(dayjs()) ? 'text-orange-500' : 'text-green-500'">
+                                {{ dayjs(goal.targetDate).fromNow() }}
+                            </p>
+                        </div>
+                        <div class="text-right mt-4">
+                            <button @click="deleteGoal(goal.id)" class="text-red-500 hover:text-red-700 transition-colors">
+                                <i class="fa-solid fa-trash"></i> 刪除
+                            </button>
+                        </div>
+                    </div>
+                    <div v-if="!goals.length" class="text-center py-12 text-gray-500 col-span-full">
+                        <i class="fa-solid fa-box-open text-4xl text-gray-300 mb-4"></i>
+                        <p>還沒有設定目標喔！</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 待辦清單視圖 -->
+            <div v-if="currentView === 'todos'">
+                 <h1 class="text-3xl font-bold text-gray-800 mb-1">待辦清單</h1>
+                 <p class="text-gray-500 mb-6">今日事，今日畢！</p>
+                <div class="bg-white p-6 rounded-2xl shadow-lg border border-gray-200">
+                    <form @submit.prevent="addTodo" class="flex gap-4 mb-4">
+                        <input type="text" v-model="newTodo.text" placeholder="新增一個新任務..." class="flex-grow p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:outline-none transition">
+                        <button type="submit" class="bg-orange-600 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-orange-700 transition-colors">新增</button>
+                    </form>
+                    <ul>
+                        <li v-for="todo in todos" :key="todo.id" class="flex items-center justify-between p-3 border-b border-gray-200 last:border-b-0 hover:bg-gray-50 rounded-lg">
+                            <div class="flex items-center gap-3">
+                                <input type="checkbox" v-model="todo.completed" class="h-5 w-5 rounded border-gray-300 text-orange-600 focus:ring-orange-500">
+                                <span :class="{ 'line-through text-gray-400': todo.completed }" class="text-gray-700">{{ todo.text }}</span>
+                            </div>
+                            <button @click="deleteTodo(todo.id)" class="text-gray-400 hover:text-red-500 transition-colors">
+                                <i class="fa-solid fa-times"></i>
+                            </button>
+                        </li>
+                    </ul>
+                     <div v-if="!todos.length" class="text-center py-12 text-gray-500">
+                        <i class="fa-solid fa-check-double text-4xl text-gray-300 mb-4"></i>
+                        <p>太棒了，目前沒有待辦事項！</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 行事曆視圖 -->
+            <div v-if="currentView === 'calendar'">
+                <div class="flex flex-col lg:flex-row gap-8">
+                    <!-- 月曆 -->
+                    <div class="bg-white p-6 rounded-2xl shadow-lg border border-gray-200 lg:w-2/3">
+                        <div class="flex justify-between items-center mb-4">
+                            <button @click="prevMonth" class="p-2 rounded-full hover:bg-gray-100"><i class="fa-solid fa-chevron-left"></i></button>
+                            <h2 class="text-xl font-bold text-gray-800">{{ currentMonth.format('YYYY 年 M 月') }}</h2>
+                            <button @click="nextMonth" class="p-2 rounded-full hover:bg-gray-100"><i class="fa-solid fa-chevron-right"></i></button>
+                        </div>
+                        <div class="grid grid-cols-7 gap-1 text-center font-semibold text-gray-500 text-sm mb-2">
+                            <div v-for="day in ['日', '一', '二', '三', '四', '五', '六']" :key="day">{{ day }}</div>
+                        </div>
+                        <div class="grid grid-cols-7 gap-1">
+                            <div v-for="day in calendarDays" :key="day.date.toString()" 
+                                 @click="selectDate(day.date)"
+                                 class="py-1 px-2 rounded-lg cursor-pointer transition-colors flex flex-col items-start justify-start h-28 border border-transparent hover:border-orange-200"
+                                 :class="{
+                                     'text-gray-400': !day.isCurrentMonth,
+                                     'bg-orange-100': day.isCurrentMonth && day.date.isSame(dayjs(), 'day') && !day.date.isSame(selectedDate, 'day'),
+                                     'bg-orange-600 text-white font-bold': day.date.isSame(selectedDate, 'day'),
+                                     'bg-white': day.isCurrentMonth && !day.date.isSame(dayjs(), 'day') && !day.date.isSame(selectedDate, 'day')
+                                 }">
+                                <span class="font-semibold" :class="{'text-orange-600': day.date.isSame(dayjs(), 'day') && !day.date.isSame(selectedDate, 'day')}">{{ day.date.format('D') }}</span>
+                                <div class="w-full mt-1 overflow-hidden text-xs space-y-1">
+                                    <div v-for="event in day.events.slice(0, 2)" :key="event.id" class="p-1 rounded truncate" :class="day.date.isSame(selectedDate, 'day') ? 'bg-orange-500 text-white' : 'bg-green-100 text-green-800'">
+                                        {{ event.title }}
+                                    </div>
+                                    <div v-if="day.events.length > 2" class="text-gray-500">
+                                        + {{ day.events.length - 2 }} 個行程
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- 當日行程 -->
+                    <div class="bg-white p-6 rounded-2xl shadow-lg border border-gray-200 lg:w-1/3">
+                        <h3 class="text-xl font-bold text-gray-800 mb-1">{{ selectedDate.format('MMMM D, YYYY') }}</h3>
+                        <p class="text-gray-500 mb-4">{{ selectedDate.format('dddd') }}</p>
+                        <button @click="showModal = 'newEvent'" class="w-full bg-green-500 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-green-600 transition-colors flex items-center justify-center gap-2 mb-4">
+                             <i class="fa-solid fa-plus"></i> 新增行程
+                        </button>
+                        <div class="space-y-3">
+                           <div v-for="event in eventsOnSelectedDate" :key="event.id" class="p-3 bg-orange-50 rounded-lg flex justify-between items-start">
+                               <div>
+                                   <p class="font-semibold text-orange-800">{{ event.title }}</p>
+                                   <p class="text-sm text-orange-600">{{ event.startTime }} - {{ event.endTime }}</p>
+                               </div>
+                               <button @click="deleteEvent(event.id)" class="text-orange-400 hover:text-red-500 text-sm pt-1"><i class="fa-solid fa-trash"></i></button>
+                           </div>
+                           <div v-if="eventsOnSelectedDate.length === 0" class="text-center text-gray-500 pt-8">
+                                <i class="fa-solid fa-calendar-check text-3xl text-gray-300 mb-3"></i>
+                               <p>這天沒有安排行程。</p>
+                           </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+        </Transition>
+    </main>
+
+    <!-- Modal 彈出視窗 -->
+    <Transition name="fade">
+        <div v-if="showModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md m-4">
+                <!-- 新增目標 Modal -->
+                <div v-if="showModal === 'newGoal'">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">新增一個新目標</h2>
+                    <form @submit.prevent="addGoal">
+                        <div class="mb-4">
+                            <label class="block text-gray-700 font-semibold mb-2">目標名稱</label>
+                            <input type="text" v-model="newGoal.title" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:outline-none" required>
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-gray-700 font-semibold mb-2">目標描述</label>
+                            <textarea v-model="newGoal.description" rows="3" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:outline-none"></textarea>
+                        </div>
+                        <div class="mb-6">
+                            <label class="block text-gray-700 font-semibold mb-2">目標日期</label>
+                            <input type="date" v-model="newGoal.targetDate" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:outline-none" required>
+                        </div>
+                        <div class="flex justify-end gap-4">
+                            <button type="button" @click="showModal = null" class="bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg hover:bg-gray-300">取消</button>
+                            <button type="submit" class="bg-orange-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-orange-700">儲存</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- 新增行程 Modal -->
+                <div v-if="showModal === 'newEvent'">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">新增行程於 {{ selectedDate.format('YYYY/MM/DD') }}</h2>
+                    <form @submit.prevent="addEvent">
+                        <div class="mb-4">
+                            <label class="block text-gray-700 font-semibold mb-2">行程名稱</label>
+                            <input type="text" v-model="newEvent.title" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none" required>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4 mb-6">
+                            <div>
+                                <label class="block text-gray-700 font-semibold mb-2">開始時間</label>
+                                <input type="time" v-model="newEvent.startTime" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none" required>
+                            </div>
+                            <div>
+                                <label class="block text-gray-700 font-semibold mb-2">結束時間</label>
+                                <input type="time" v-model="newEvent.endTime" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none" required>
+                            </div>
+                        </div>
+                        <div class="flex justify-end gap-4">
+                            <button type="button" @click="showModal = null" class="bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg hover:bg-gray-300">取消</button>
+                            <button type="submit" class="bg-green-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-600">儲存</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </Transition>
+</div>
+
+<script>
+    const { createApp, ref, reactive, computed, watch, onMounted, onUnmounted } = Vue;
+
+    createApp({
+        setup() {
+            // 設定 Day.js
+            dayjs.extend(window.dayjs_plugin_relativeTime);
+            dayjs.locale('zh-tw');
+
+            // --- 響應式狀態 ---
+            const currentView = ref('dashboard');
+            const goals = ref(JSON.parse(localStorage.getItem('goals') || '[]'));
+            const todos = ref(JSON.parse(localStorage.getItem('todos') || '[]'));
+            const events = ref(JSON.parse(localStorage.getItem('events') || '[]'));
+            
+            const showModal = ref(null); // 'newGoal', 'newEvent', null
+
+            const newGoal = reactive({ title: '', description: '', targetDate: '' });
+            const newTodo = reactive({ text: '' });
+            const newEvent = reactive({ title: '', startTime: '', endTime: '' });
+
+            const countdown = ref(null);
+            let countdownInterval = null;
+
+            const currentMonth = ref(dayjs());
+            const selectedDate = ref(dayjs());
+
+            // --- 計算屬性 ---
+            
+            // 找出最近的一個目標作為主要目標
+            const mainGoal = computed(() => {
+                const futureGoals = goals.value
+                    .filter(g => dayjs(g.targetDate).isAfter(dayjs()))
+                    .sort((a, b) => dayjs(a.targetDate).diff(dayjs(b.targetDate)));
+                return futureGoals.length > 0 ? futureGoals[0] : (goals.value.length > 0 ? goals.value[0] : null);
+            });
+
+            // 計算月曆需要顯示的日期陣列
+            const calendarDays = computed(() => {
+                const startOfMonth = currentMonth.value.startOf('month');
+                const endOfMonth = currentMonth.value.endOf('month');
+                const startDate = startOfMonth.startOf('week');
+                const endDate = endOfMonth.endOf('week');
+                
+                let days = [];
+                let day = startDate;
+
+                while (day.isBefore(endDate) || day.isSame(endDate, 'day')) {
+                    days.push({
+                        date: day,
+                        isCurrentMonth: day.isSame(currentMonth.value, 'month'),
+                        events: events.value
+                            .filter(e => dayjs(e.date).isSame(day, 'day'))
+                            .sort((a,b) => a.startTime.localeCompare(b.startTime))
+                    });
+                    day = day.add(1, 'day');
+                }
+                return days;
+            });
+            
+            // 取得選定日期的所有行程
+            const eventsOnSelectedDate = computed(() => {
+                return events.value
+                    .filter(event => dayjs(event.date).isSame(selectedDate.value, 'day'))
+                    .sort((a,b) => a.startTime.localeCompare(b.startTime));
+            });
+
+            // --- 方法 ---
+
+            // 目標管理
+            const addGoal = () => {
+                if (!newGoal.title || !newGoal.targetDate) return;
+                goals.value.push({
+                    id: Date.now(),
+                    ...newGoal
+                });
+                // reset
+                newGoal.title = '';
+                newGoal.description = '';
+                newGoal.targetDate = '';
+                showModal.value = null;
+            };
+            const deleteGoal = (id) => {
+                goals.value = goals.value.filter(g => g.id !== id);
+            };
+
+            // 待辦事項管理
+            const addTodo = () => {
+                if (!newTodo.text.trim()) return;
+                todos.value.unshift({
+                    id: Date.now(),
+                    text: newTodo.text,
+                    completed: false
+                });
+                newTodo.text = '';
+            };
+            const deleteTodo = (id) => {
+                todos.value = todos.value.filter(t => t.id !== id);
+            };
+
+            // 行程管理
+            const addEvent = () => {
+                if (!newEvent.title || !newEvent.startTime || !newEvent.endTime) return;
+                events.value.push({
+                    id: Date.now(),
+                    date: selectedDate.value.format('YYYY-MM-DD'),
+                    ...newEvent
+                });
+                newEvent.title = '';
+                newEvent.startTime = '';
+                newEvent.endTime = '';
+                showModal.value = null;
+            };
+            const deleteEvent = (id) => {
+                events.value = events.value.filter(e => e.id !== id);
+            };
+
+            // 行事曆導覽
+            const prevMonth = () => currentMonth.value = currentMonth.value.subtract(1, 'month');
+            const nextMonth = () => currentMonth.value = currentMonth.value.add(1, 'month');
+            const selectDate = (date) => selectedDate.value = date;
+
+            // --- 倒數計時器邏輯 ---
+            const startCountdown = () => {
+                if(countdownInterval) clearInterval(countdownInterval);
+
+                countdownInterval = setInterval(() => {
+                    if (!mainGoal.value) {
+                        countdown.value = null;
+                        return;
+                    }
+                    const now = dayjs();
+                    const target = dayjs(mainGoal.value.targetDate);
+                    if(now.isAfter(target)){
+                        countdown.value = null;
+                        clearInterval(countdownInterval);
+                        return;
+                    }
+
+                    const diff = target.diff(now);
+                    const duration = {
+                        days: Math.floor(diff / (1000 * 60 * 60 * 24)),
+                        hours: Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)),
+                        minutes: Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60)),
+                        seconds: Math.floor((diff % (1000 * 60)) / 1000)
+                    };
+                    countdown.value = duration;
+                }, 1000);
+            };
+
+            // --- 資料持久化 ---
+            watch(goals, (newGoals) => {
+                localStorage.setItem('goals', JSON.stringify(newGoals));
+                startCountdown(); // 目標改變時，重啟倒數
+            }, { deep: true });
+
+            watch(todos, (newTodos) => {
+                localStorage.setItem('todos', JSON.stringify(newTodos));
+            }, { deep: true });
+            
+            watch(events, (newEvents) => {
+                localStorage.setItem('events', JSON.stringify(newEvents));
+            }, { deep: true });
+
+            // --- 生命週期鉤子 ---
+            onMounted(() => {
+                startCountdown();
+            });
+            onUnmounted(() => {
+                clearInterval(countdownInterval);
+            });
+
+            return {
+                currentView,
+                goals,
+                todos,
+                events,
+                showModal,
+                newGoal,
+                newTodo,
+                newEvent,
+                mainGoal,
+                countdown,
+                addGoal,
+                deleteGoal,
+                addTodo,
+                deleteTodo,
+                dayjs,
+                currentMonth,
+                selectedDate,
+                calendarDays,
+                eventsOnSelectedDate,
+                prevMonth,
+                nextMonth,
+                selectDate,
+                addEvent,
+                deleteEvent
+            };
+        }
+    }).mount('#app');
+</script>
+
+</body>
+</html>
+
+
