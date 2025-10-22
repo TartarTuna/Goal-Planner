@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Goal Booster</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 384 512'><path fill='%23EA580C' d='M153.6 29.9l16-21.3C173.6 3.2 181.8 0 192 0s18.4 3.2 22.4 8.5l16 21.3C267.1 63.5 314.6 128 320 192c5.4 64-26.4 128-80 160s-128 26.4-160-80c-3.5-22.1-2.9-44.4 .9-66.5l8.5-48.4c4.8-27.3 22-52.1 40-70.1l2.4-2.4C169.5 106.3 162.2 64 153.6 29.9zM192 384c17.7 0 32-14.3 32-32s-14.3-32-32-32-32 14.3-32 32 14.3 32 32 32z'/></svg>">
-    <!-- 引入 Tailwind CSS -->
+    <!-- CSS, Vue, Day.js, Font Awesome ... -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- 引入 Vue 3 -->
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
@@ -50,7 +50,24 @@
             opacity: 0.5;
             background: #f0f9ff;
         }
+        /* 自訂 clip-path 讓葉子變成星星形狀 */
+        .clip-path-polygon {
+            clip-path: polygon(
+                50% 0%,
+                61% 35%,
+                98% 35%,
+                68% 57%,
+                79% 91%,
+                50% 70%,
+                21% 91%,
+                32% 57%,
+                2% 35%,
+                39% 35%
+            );
+        }
     </style>
+</head>
+
 </head>
 <body>
 
@@ -72,6 +89,11 @@
             </a>
             <a href="#" @click.prevent="currentView = 'calendar'" class="sidebar-icon text-gray-500 p-3 rounded-lg" :class="{ 'bg-orange-100 text-orange-600': currentView === 'calendar' }" title="行事曆">
                 <i class="fa-solid fa-calendar-days fa-2x"></i>
+            </a>
+            <!-- 更新為 Font Awesome 圖示 -->
+            <a href="#" @click.prevent="currentView = 'pomodoro'" class="sidebar-icon text-gray-500 p-3 rounded-lg" :class="{ 'bg-orange-100 text-orange-600': currentView === 'pomodoro' }" title="番茄鐘">
+                <!-- 使用 Font Awesome 圖示 -->
+                <i class="fa-solid fa-clock-rotate-left fa-2x"></i>
             </a>
         </nav>
     </aside>
@@ -114,7 +136,7 @@
                     <div v-else class="text-center py-12">
                         <i class="fa-solid fa-bullseye text-4xl text-gray-300 mb-4"></i>
                         <h3 class="text-xl font-semibold text-gray-600">尚未設定任何目標</h3>
-                        <p class="text-gray-400">前往「目標設定」頁面新增第一個目標吧！</p>
+                        <p class="text-gray-400">前往「目標設定」頁面新增您的第一個目標吧！</p>
                     </div>
                 </div>
             </div>
@@ -124,7 +146,7 @@
                 <div class="flex justify-between items-center mb-6">
                     <div>
                       <h1 class="text-3xl font-bold text-gray-800">我的目標</h1>
-                      <p class="text-gray-500 mt-1">設定、追蹤並完成目標。</p>
+                      <p class="text-gray-500 mt-1">I see, I come, I conquer.</p>
                     </div>
                     <button @click="openGoalModal()" class="bg-orange-600 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-orange-700 transition-colors flex items-center gap-2">
                         <i class="fa-solid fa-plus"></i> 新增目標
@@ -271,6 +293,51 @@
                 </div>
             </div>
 
+            <!-- 番茄鐘視圖 -->
+            <div v-if="currentView === 'pomodoro'">
+                <h1 class="text-3xl font-bold text-gray-800 mb-2">番茄鐘</h1>
+                <p class="text-gray-500 mb-8 text-left">設定一段時間，保持高度專注！</p>
+                
+                <!-- 番茄形狀容器 -->
+                <div class="max-w-md mx-auto flex flex-col items-center pt-8">
+                    <!-- 番茄主體 -->
+                    <div class="relative w-80 h-80 md:w-96 md:h-96 bg-red-600 rounded-full flex flex-col items-center justify-center shadow-2xl">
+                        <!-- 🌿 Tomato leaves (星星葉子) -->
+                        <div class="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-40 h-40 bg-green-600 rotate-45 clip-path-polygon"></div>
+
+                        <!-- 時間顯示 -->
+                        <div class="text-7xl md:text-8xl font-bold text-white mb-6">
+                            {{ pomodoroDisplay }}
+                        </div>
+                        
+                        <!-- 時間設定 -->
+                        <div class="flex items-center gap-2 mb-6">
+                             <label class="text-red-100 font-semibold text-sm">分鐘：</label>
+                            <input type="number" 
+                                   v-model.number="pomodoro.customMinutes" 
+                                   min="1" 
+                                   class="w-20 p-2 border border-white/50 bg-white/20 text-white rounded-lg focus:ring-2 focus:ring-white focus:outline-none"
+                                   :disabled="pomodoro.isRunning">
+                        </div>
+
+                        <!-- 控制按鈕 -->
+                        <div class="flex gap-4">
+                            <button @click="startPausePomodoro" 
+                                    class="w-28 text-center font-bold py-3 px-4 rounded-lg shadow-md transition-colors bg-white hover:bg-red-100"
+                                    :class="pomodoro.isRunning ? 'text-yellow-600' : 'text-green-600'">
+                                <i class="fa-solid" :class="pomodoro.isRunning ? 'fa-pause' : 'fa-play'"></i>
+                                {{ pomodoro.isRunning ? '暫停' : '開始' }}
+                            </button>
+                            <button @click="resetPomodoro" 
+                                    class="w-28 text-center border border-white/50 text-white font-bold py-3 px-4 rounded-lg shadow-md hover:bg-white/20 transition-colors">
+                                <i class="fa-solid fa-rotate-right"></i>
+                                重置
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
         </div>
         </Transition>
     </main>
@@ -302,30 +369,15 @@
                     </form>
                 </div>
 
-                <!-- 新增/編輯行程 Modal -->
-                <div v-if="showModal === 'eventForm'">
-                    <h2 class="text-2xl font-bold text-gray-800 mb-4">{{ eventForm.id ? '編輯行程' : '新增行程' }}於 {{ selectedDate.format('YYYY/MM/DD') }}</h2>
-                    <form @submit.prevent="saveEvent">
-                        <div class="mb-4">
-                            <label class="block text-gray-700 font-semibold mb-2">行程名稱</label>
-                            <input type="text" v-model="eventForm.title" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none" required>
-                        </div>
-                        <div class="grid grid-cols-2 gap-4 mb-6">
-                            <div>
-                                <label class="block text-gray-700 font-semibold mb-2">開始時間</label>
-                                <input type="time" v-model="eventForm.startTime" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none" required>
-                            </div>
-                            <div>
-                                <label class="block text-gray-700 font-semibold mb-2">結束時間</label>
-                                <input type="time" v-model="eventForm.endTime" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none" required>
-                            </div>
-                        </div>
-                        <div class="flex justify-end gap-4">
-                            <button type="button" @click="showModal = null" class="bg-gray-200 text-gray-800 font-bold py-2 px-4 rounded-lg hover:bg-gray-300">取消</button>
-                            <button type="submit" class="bg-green-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-600">儲存</button>
-                        </div>
-                    </form>
+                <!-- 番茄鐘提醒 Modal -->
+                <div v-if="showModal === 'pomodoroAlert'">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">時間到！</h2>
+                    <p class="text-gray-600 mb-6">專注時間結束，起來休息一下吧！</p>
+                    <div class="flex justify-end">
+                        <button @click="closePomodoroAlert" class="bg-orange-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-orange-700">好的</button>
+                    </div>
                 </div>
+
             </div>
         </div>
     </Transition>
@@ -353,9 +405,19 @@
             const newTodo = reactive({ text: '' });
             let originalTodoText = '';
             const draggingTodo = ref(null);
-
+ 
             const countdown = ref(null);
             let countdownInterval = null;
+
+            // 番茄鐘狀態
+            const pomodoro = reactive({
+                defaultMinutes: 25,
+                minutes: 25,
+                seconds: 0,
+                isRunning: false,
+                timerId: null,
+                customMinutes: 25
+            });
 
             const currentMonth = ref(dayjs());
             const selectedDate = ref(dayjs());
@@ -394,6 +456,13 @@
                 return events.value
                     .filter(event => dayjs(event.date).isSame(selectedDate.value, 'day'))
                     .sort((a,b) => a.startTime.localeCompare(b.startTime));
+            });
+
+            // 番茄鐘時間顯示
+            const pomodoroDisplay = computed(() => {
+                const minutes = String(pomodoro.minutes).padStart(2, '0');
+                const seconds = String(pomodoro.seconds).padStart(2, '0');
+                return `${minutes}:${seconds}`;
             });
 
             // --- 方法 ---
@@ -526,6 +595,55 @@
             const nextMonth = () => currentMonth.value = currentMonth.value.add(1, 'month');
             const selectDate = (date) => selectedDate.value = date;
 
+            // --- 番茄鐘方法 ---
+            const tickPomodoro = () => {
+                if (pomodoro.seconds > 0) {
+                    pomodoro.seconds--;
+                } else if (pomodoro.minutes > 0) {
+                    pomodoro.minutes--;
+                    pomodoro.seconds = 59;
+                } else {
+                    // 時間到
+                    clearInterval(pomodoro.timerId);
+                    pomodoro.isRunning = false;
+                    pomodoro.timerId = null;
+                    showModal.value = 'pomodoroAlert';
+                }
+            };
+
+            const startPausePomodoro = () => {
+                if (pomodoro.isRunning) {
+                    // 暫停
+                    clearInterval(pomodoro.timerId);
+                    pomodoro.isRunning = false;
+                    pomodoro.timerId = null;
+                } else {
+                    // 開始
+                    pomodoro.isRunning = true;
+                    // 如果是剛重置的狀態，從設定的分鐘數開始
+                    if (pomodoro.minutes === 0 && pomodoro.seconds === 0) {
+                         pomodoro.minutes = pomodoro.customMinutes || pomodoro.defaultMinutes;
+                         pomodoro.seconds = 0;
+                    }
+                    pomodoro.timerId = setInterval(tickPomodoro, 1000);
+                }
+            };
+
+            const resetPomodoro = () => {
+                if (pomodoro.timerId) {
+                    clearInterval(pomodoro.timerId);
+                }
+                pomodoro.isRunning = false;
+                pomodoro.timerId = null;
+                pomodoro.minutes = pomodoro.customMinutes || pomodoro.defaultMinutes;
+                pomodoro.seconds = 0;
+            };
+
+            const closePomodoroAlert = () => {
+                showModal.value = null;
+                resetPomodoro(); // 關閉提示後自動重置
+            };
+
             // --- 倒數計時器邏輯 ---
             const startCountdown = () => {
                 if(countdownInterval) clearInterval(countdownInterval);
@@ -574,6 +692,9 @@
             });
             onUnmounted(() => {
                 clearInterval(countdownInterval);
+                if (pomodoro.timerId) { // 離開頁面時清除番茄鐘
+                    clearInterval(pomodoro.timerId);
+                }
             });
 
             return {
@@ -609,7 +730,13 @@
                 selectDate,
                 openEventModal,
                 saveEvent,
-                deleteEvent
+                deleteEvent,
+                // 番茄鐘
+                pomodoro,
+                pomodoroDisplay,
+                startPausePomodoro,
+                resetPomodoro,
+                closePomodoroAlert
             };
         }
     });
@@ -624,5 +751,8 @@
 
 </body>
 </html>
+
+
+
 
 
